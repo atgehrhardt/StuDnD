@@ -1,4 +1,4 @@
-# DnD Learning Companion
+# StuDnD
 
 A desktop application using Electron and Svelte for playing DnD 5e with an LLM-based Game Master. This application uses Google's Gemini Flash 2 model to provide an interactive DnD experience where dice rolls are influenced by study checks, encouraging learning while playing.
 
@@ -99,6 +99,22 @@ dnd-learning-companion/
 │   ├── components/           # UI components
 │   ├── stores/               # State management
 │   └── lib/                  # Utility functions, API integration
+├── build_resources/
+│   └── icons/                # Application icons for all platforms
+```
+
+### Icons and Distribution
+
+The application includes custom icons for all supported platforms:
+
+- macOS: `.icns` format
+- Windows: `.ico` format
+- Linux: PNG files in various sizes
+
+To rebuild the icons from the source SVG:
+
+```bash
+npm run generate-icons
 ```
 
 ## License

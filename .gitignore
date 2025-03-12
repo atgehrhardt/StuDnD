@@ -17,6 +17,12 @@ dist/
 dist-electron/
 build/
 out/
+*.dmg
+*.exe
+*.zip
+*.AppImage
+*.deb
+*.rpm
 
 # OS files
 .DS_Store
@@ -41,6 +47,7 @@ logs/
 
 # Electron specific
 .electron-build/
+.electron-icons/
 
 # Temporary files
 *.tmp

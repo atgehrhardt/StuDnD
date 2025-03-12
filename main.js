@@ -3,6 +3,14 @@ const path = require('path');
 const Store = require('electron-store');
 const fs = require('fs');
 
+// Import startup diagnostic
+try {
+  const { runDiagnostic } = require('./build_resources/startup-diagnostic');
+  runDiagnostic();
+} catch (err) {
+  console.error('Failed to run startup diagnostic:', err);
+}
+
 // In development mode, we'd want live reload, but we'll skip for now
 // as it's causing issues
 if (process.env.ELECTRON_DEV) {
@@ -116,12 +124,17 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, process.platform === 'darwin' 
+      ? 'build_resources/icons/mac/icon.icns' 
+      : process.platform === 'win32'
+        ? 'build_resources/icons/win/icon.ico'
+        : 'build_resources/icons/linux/512x512.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
       webSecurity: true,
-      devTools: app.isPackaged ? false : true  // Disable DevTools in production
+      devTools: app.isPackaged ? false : true  // Only enable DevTools in development
     }
   });
   
@@ -131,7 +144,7 @@ function createWindow() {
       callback({
         responseHeaders: {
           ...details.responseHeaders,
-          'Content-Security-Policy': ["default-src 'self'; script-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com; style-src 'self' 'unsafe-inline';"]
+          'Content-Security-Policy': ["default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://generativelanguage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"]
         }
       });
     });
@@ -140,14 +153,170 @@ function createWindow() {
   console.log('App is packaged:', app.isPackaged);
   
   // Simple logic for loading the app
-  const indexPath = path.join(__dirname, 'dist', 'index.html');
+  // Check if the app is packaged (production build) or not (development)
+  // In production, bundle is at the root of the app directory
+  // In development, it's in the dist folder
+  let indexPath;
+  
+  if (app.isPackaged) {
+    // In production, resources are relative to the app's root
+    indexPath = path.join(__dirname, 'dist', 'index.html');
+    
+    // Log the environment for debugging
+    console.log('Running in production mode');
+    console.log('App path:', app.getAppPath());
+    console.log('__dirname:', __dirname);
+    
+    // List files in the app directory to verify structure
+    try {
+      const files = fs.readdirSync(__dirname);
+      console.log('Files in app directory:', files);
+      
+      // Check dist directory
+      const distPath = path.join(__dirname, 'dist');
+      if (fs.existsSync(distPath)) {
+        const distFiles = fs.readdirSync(distPath);
+        console.log('Files in dist directory:', distFiles);
+      } else {
+        console.log('dist directory not found');
+      }
+    } catch (err) {
+      console.error('Error listing files:', err);
+    }
+  } else {
+    // In development, resources are in the dist folder
+    indexPath = path.join(__dirname, 'dist', 'index.html');
+    console.log('Running in development mode');
+  }
+  
+  // Check if the file exists before loading it
+  if (!fs.existsSync(indexPath)) {
+    console.error(`Error: index.html not found at ${indexPath}`);
+    // Try to find it in alternative locations
+    const possiblePaths = [
+      path.join(__dirname, 'dist', 'index.html'),
+      path.join(process.cwd(), 'dist', 'index.html'),
+      path.join(app.getAppPath(), 'dist', 'index.html')
+    ];
+    
+    for (const altPath of possiblePaths) {
+      console.log(`Checking alternative path: ${altPath}`);
+      if (fs.existsSync(altPath)) {
+        console.log(`Found index.html at alternative path: ${altPath}`);
+        indexPath = altPath;
+        break;
+      }
+    }
+  }
+  
   console.log('Loading index from:', indexPath);
   
-  // Load the file
-  mainWindow.loadFile(indexPath);
+  // Load the file and add error handling
+  try {
+    // Before loading the file, check if it exists one more time
+    if (fs.existsSync(indexPath)) {
+      mainWindow.loadFile(indexPath);
+      
+      // Handle page load errors
+      mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+        console.error(`Failed to load: ${errorDescription} (${errorCode})`);
+        
+        // Load the dedicated error page
+        const errorPagePath = path.join(__dirname, 'build_resources', 'error.html');
+        if (fs.existsSync(errorPagePath)) {
+          mainWindow.loadFile(errorPagePath, {
+            query: {
+              'error': `Failed to load app: ${errorDescription} (${errorCode})`
+            }
+          });
+        } else {
+          // Fallback if even the error page is missing
+          mainWindow.loadURL(`data:text/html;charset=utf-8,
+            <html>
+              <head>
+                <title>Error Loading Application</title>
+                <style>
+                  body { font-family: sans-serif; padding: 2rem; background: #1a1a1a; color: #f0f0f0; }
+                  .error { background: #ff5252; color: white; padding: 1rem; border-radius: 4px; }
+                </style>
+              </head>
+              <body>
+                <h1>Error Loading Application</h1>
+                <div class="error">
+                  <p><strong>Error:</strong> ${errorDescription} (${errorCode})</p>
+                  <p>Please try restarting the application.</p>
+                </div>
+              </body>
+            </html>
+          `);
+        }
+      });
+    } else {
+      console.error(`Index file not found at: ${indexPath}`);
+      
+      // Try to directly load the bundle.js file inside a minimal HTML shell
+      mainWindow.loadURL(`data:text/html;charset=utf-8,
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>DnD Learning Companion</title>
+            <style>
+              body { margin: 0; padding: 0; background: #1a1a1a; color: #f0f0f0; }
+            </style>
+          </head>
+          <body>
+            <div id="app">
+              <div style="display: flex; justify-content: center; align-items: center; height: 100vh; text-align: center;">
+                <div>
+                  <h1>DnD Learning Companion</h1>
+                  <p>Loading application...</p>
+                  <div style="width: 50px; height: 50px; border: 5px solid #333; border-top: 5px solid #4a6; border-radius: 50%; margin: 20px auto; animation: spin 1s linear infinite;"></div>
+                </div>
+              </div>
+            </div>
+            <script>
+              // Animation for the spinner
+              document.head.insertAdjacentHTML('beforeend', 
+                '<style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>');
+              
+              // Try to load the bundle dynamically
+              try {
+                const script = document.createElement('script');
+                script.src = './dist/bundle.js';
+                script.onerror = () => {
+                  document.getElementById('app').innerHTML = '<div style="padding: 2rem; text-align: center;"><h1>Error Loading Application</h1><p>Failed to load the main application bundle.</p></div>';
+                };
+                document.body.appendChild(script);
+              } catch (e) {
+                console.error('Error loading bundle:', e);
+              }
+            </script>
+          </body>
+        </html>
+      `);
+    }
+  } catch (err) {
+    console.error('Error loading file:', err);
+    
+    // Try to load the error page as a last resort
+    try {
+      const errorPagePath = path.join(__dirname, 'build_resources', 'error.html');
+      if (fs.existsSync(errorPagePath)) {
+        mainWindow.loadFile(errorPagePath, {
+          query: {
+            'error': `Error loading application: ${err.message}`
+          }
+        });
+      }
+    } catch (errorPageErr) {
+      console.error('Failed to load error page:', errorPageErr);
+    }
+  }
 
-  // Open DevTools in development mode (ELECTRON_DEV), but never in production
-  if (process.env.ELECTRON_DEV || (!app.isPackaged && process.env.NODE_ENV !== 'production')) {
+  // Only open DevTools in development when explicitly requested
+  if (!app.isPackaged && process.env.OPEN_DEV_TOOLS === '1') {
     mainWindow.webContents.openDevTools();
   }
 

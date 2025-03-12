@@ -1,7 +1,11 @@
 import './lib/fsCompat.js'; // Import FS compatibility layer
 import App from './App.svelte';
+import { setupGlobalErrorHandlers } from './lib/errorHandler.js';
 
 console.log('main.js: App initialization starting');
+
+// Setup global error handlers
+setupGlobalErrorHandlers();
 
 // Check if the app element exists
 const appElement = document.getElementById('app');
@@ -13,6 +17,25 @@ function initApp() {
   console.log('main.js: Initializing app');
   
   try {
+    // Check if the API is available
+    if (!window.api) {
+      console.error('main.js: API not available - preload script might not be loaded correctly');
+      if (appElement) {
+        appElement.innerHTML = `
+          <div style="padding: 2rem; text-align: center; font-family: sans-serif; color: #f0f0f0; background: #2a2a2a; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <h2>Failed to initialize application</h2>
+            <p>The API bridge is not available. This usually means the preload script didn't load correctly.</p>
+            <div style="margin-top: 2rem; padding: 1rem; background: rgba(0,0,0,0.3); max-width: 80%; border-radius: 8px; font-family: monospace; text-align: left;">
+              <p>Error: window.api is undefined</p>
+            </div>
+            <button style="margin-top: 2rem; padding: 0.75rem 1.5rem; background: #7c5ce7; color: white; border: none; border-radius: 8px; cursor: pointer;" 
+                    onclick="location.reload()">Retry</button>
+          </div>
+        `;
+      }
+      throw new Error('API not available - preload script might not be loaded correctly');
+    }
+    
     // First, clear the loading indicator that's in the HTML
     if (appElement) {
       console.log('main.js: Clearing loading indicator');

@@ -1,14 +1,17 @@
 {
-  "appId": "com.dndlearning.companion",
-  "productName": "DnD Learning Companion",
+  "appId": "com.studnd.app",
+  "productName": "StuDnD",
   "directories": {
-    "output": "dist-electron"
+    "output": "dist-electron",
+    "buildResources": "build_resources"
   },
+  "asar": false,
   "files": [
     "dist/**/*",
     "main.js",
     "preload.js",
-    "package.json"
+    "package.json",
+    "build_resources/**/*"
   ],
   "mac": {
     "category": "public.app-category.games",
@@ -18,7 +21,8 @@
         "arch": ["arm64", "x64"]
       }
     ],
-    "artifactName": "${productName}-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "icon": "build_resources/icons/mac/icon.icns"
   },
   "win": {
     "target": [
@@ -27,7 +31,8 @@
         "arch": ["x64"]
       }
     ],
-    "artifactName": "${productName}-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "icon": "build_resources/icons/win/icon.ico"
   },
   "linux": {
     "target": [
@@ -40,6 +45,7 @@
         "arch": ["x64"]
       }
     ],
-    "category": "Game"
+    "category": "Game",
+    "icon": "build_resources/icons/linux"
   }
 }

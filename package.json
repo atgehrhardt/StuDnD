@@ -1,30 +1,42 @@
 {
-  "name": "dnd-learning-companion",
+  "name": "studnd",
   "version": "1.0.0",
-  "description": "DnD 5e Learning Companion with LLM-based GM",
+  "description": "StuDnD - DnD 5e Learning Companion with LLM-based GM",
   "main": "main.js",
   "scripts": {
     "dev": "npm run build && concurrently \"rollup -c -w\" \"electron .\"",
+    "dev:debug": "OPEN_DEV_TOOLS=1 npm run build && concurrently \"rollup -c -w\" \"OPEN_DEV_TOOLS=1 electron .\"",
     "build": "rollup -c",
+    "build:test": "rollup -c rollup.test.config.js",
     "start": "npm run build && electron .",
+    "start:debug": "npm run build && OPEN_DEV_TOOLS=1 electron .",
+    "start:test": "npm run build:test && electron .",
     "clean": "rimraf dist dist-electron",
     "prebuild": "npm run clean",
-    "dist": "npm run clean && npm run build && electron-builder",
-    "dist:mac": "npm run clean && npm run build && electron-builder --mac",
-    "dist:win": "npm run clean && npm run build && electron-builder --win",
-    "dist:linux": "npm run clean && npm run build && electron-builder --linux"
+    "postbuild": "echo 'Build completed successfully' && ls -la dist/ && node ./build_resources/debug-build.js",
+    "check-bundles": "node ./build_resources/check-bundles.js",
+    "generate-icons": "node ./build_resources/convert-svg.js && electron-icon-builder --input=./build_resources/icons/icon.png --output=./build_resources/icons",
+    "dist": "npm run clean && npm run build && npm run check-bundles && electron-builder",
+    "dist:mac": "npm run clean && npm run build && npm run check-bundles && electron-builder --mac",
+    "dist:win": "npm run clean && npm run build && npm run check-bundles && electron-builder --win",
+    "dist:linux": "npm run clean && npm run build && npm run check-bundles && electron-builder --linux",
+    "dist:test": "npm run clean && npm run build:test && electron-builder --mac",
+    "dist:minimal": "npm run clean && npm run build:test && MINIMAL_TEST=1 electron-builder --mac"
   },
   "build": {
-    "appId": "com.dndlearning.companion",
-    "productName": "DnD Learning Companion",
+    "appId": "com.studnd.app",
+    "productName": "StuDnD",
     "directories": {
-      "output": "dist-electron"
+      "output": "dist-electron",
+      "buildResources": "build_resources"
     },
+    "asar": false,
     "files": [
       "dist/**/*",
-      "main.js",
+      "main.js", 
       "preload.js",
-      "package.json"
+      "package.json",
+      "build_resources/**/*"
     ],
     "mac": {
       "category": "public.app-category.games",
@@ -37,7 +49,8 @@
           ]
         }
       ],
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "icon": "build_resources/icons/mac/icon.icns"
     },
     "win": {
       "target": [
@@ -48,7 +61,8 @@
           ]
         }
       ],
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "icon": "build_resources/icons/win/icon.ico"
     },
     "linux": {
       "target": [
@@ -65,7 +79,8 @@
           ]
         }
       ],
-      "category": "Game"
+      "category": "Game",
+      "icon": "build_resources/icons/linux"
     }
   },
   "keywords": [
@@ -84,12 +99,14 @@
     "cross-env": "^7.0.3",
     "electron": "^29.1.0",
     "electron-builder": "^24.13.0",
+    "electron-icon-builder": "^2.0.1",
     "electron-reload": "^2.0.0-alpha.1",
     "rimraf": "^5.0.1",
     "rollup": "^2.79.1",
     "rollup-plugin-css-only": "^4.5.2",
     "rollup-plugin-svelte": "^7.1.6",
     "rollup-plugin-terser": "^7.0.2",
+    "sharp": "^0.33.5",
     "svelte": "^4.2.12"
   },
   "dependencies": {

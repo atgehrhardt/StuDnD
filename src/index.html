@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com; style-src 'self' 'unsafe-inline';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://generativelanguage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
   <title>DnD Learning Companion</title>
   <link rel="stylesheet" href="bundle.css">
   <style>
@@ -82,6 +82,59 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    
+    /* Error message styling */
+    .error-screen {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #1a1a1a;
+      color: #f0f0f0;
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+      text-align: center;
+    }
+    
+    .error-container {
+      max-width: 600px;
+      background-color: #2a2a2a;
+      border-radius: 8px;
+      padding: 2rem;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    .error-message {
+      background-color: rgba(255, 0, 0, 0.1);
+      border-left: 4px solid #ff5252;
+      padding: 1rem;
+      margin: 1rem 0;
+      text-align: left;
+      max-height: 200px;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    
+    .retry-button {
+      background-color: #7c5ce7;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-top: 1rem;
+    }
+    
+    .retry-button:hover {
+      background-color: #6c4dd0;
+    }
   </style>
 </head>
 <body>
@@ -94,6 +147,49 @@
       </div>
     </div>
   </div>
+  
+  <!-- Error screen that will be shown if the app fails to load -->
+  <div id="error-screen" class="error-screen">
+    <div class="error-container">
+      <h1>Application Error</h1>
+      <p>The application encountered an error while loading.</p>
+      <div class="error-message" id="error-message">Unknown error occurred.</div>
+      <p>Please try restarting the application.</p>
+      <button class="retry-button" onclick="location.reload()">Retry</button>
+    </div>
+  </div>
+  
+  <script>
+    // Simple error handling to catch bundle loading issues
+    window.addEventListener('error', function(event) {
+      const errorScreen = document.getElementById('error-screen');
+      const errorMessage = document.getElementById('error-message');
+      if (errorScreen && errorMessage) {
+        errorMessage.textContent = event.message + '\nAt: ' + (event.filename || 'unknown') + ':' + (event.lineno || '?');
+        errorScreen.style.display = 'flex';
+      }
+      console.error('Caught error:', event);
+    });
+    
+    // Failsafe timeout - if the app doesn't load within 10 seconds, show error
+    setTimeout(function() {
+      const app = document.getElementById('app');
+      // Check if the app is still showing the loading screen
+      if (app && app.querySelector('.loading-app')) {
+        const errorScreen = document.getElementById('error-screen');
+        const errorMessage = document.getElementById('error-message');
+        if (errorScreen && errorMessage) {
+          errorMessage.textContent = 'Application failed to load within the expected time. This may indicate an issue with the bundle.js file.';
+          errorScreen.style.display = 'flex';
+        }
+      }
+    }, 10000);
+  </script>
+  
+  <!-- Debug renderer script -->
+  <script src="../build_resources/debug-renderer.js"></script>
+  
+  <!-- Main application bundle -->
   <script src="bundle.js"></script>
 </body>
 </html>
