@@ -61,15 +61,45 @@ function getStore() {
         console.error('Error checking config file:', e);
       }
       
-      // Create a simple store without encryption for now
-      store = new Store({
+      // Create a store with encryption for sensitive data
+      const encryptionKey = getEncryptionKey();
+      
+      // Set up store options
+      const storeOptions = {
         name: 'config',
+        encryptionKey: encryptionKey,
         defaults: {
           geminiApiKey: '',
           theme: 'dark',
           debugMode: false
         }
-      });
+      };
+      
+      // For Windows portable mode, store config next to the executable
+      if (process.platform === 'win32' && app.isPackaged) {
+        // Try to use portable configuration path
+        try {
+          const portableConfigPath = path.join(path.dirname(process.execPath), 'config');
+          
+          // Test if we can write to this directory
+          if (!fs.existsSync(portableConfigPath)) {
+            fs.mkdirSync(portableConfigPath, { recursive: true });
+          }
+          // Write test
+          const testFile = path.join(portableConfigPath, '.write-test');
+          fs.writeFileSync(testFile, 'test');
+          fs.unlinkSync(testFile);
+          
+          // If successful, set portable config path
+          storeOptions.cwd = portableConfigPath;
+          console.log('Using portable config path:', portableConfigPath);
+        } catch (err) {
+          console.log('Portable config not available, using standard location');
+        }
+      }
+      
+      // Create the store with the configured options
+      store = new Store(storeOptions);
       console.log('Store initialized successfully');
     } catch (error) {
       console.error('Error initializing store:', error);
@@ -99,10 +129,46 @@ let mainWindow;
 
 // Get user data directory for saved games
 function getUserDataPath() {
-  const userDataPath = path.join(app.getPath('userData'), 'data');
+  let userDataPath;
+  
+  // For Windows portable mode, store data next to the executable
+  if (process.platform === 'win32' && !app.isPackaged) {
+    // In development, use standard userData path
+    userDataPath = path.join(app.getPath('userData'), 'data');
+  } else if (process.platform === 'win32') {
+    // In production Windows, check if we're running in portable mode
+    // by looking for a "data" folder next to the executable
+    const portableDataPath = path.join(path.dirname(process.execPath), 'data');
+    
+    // Check if we can write to this directory (portable mode)
+    try {
+      // Try to create or access the portable data directory
+      if (!fs.existsSync(portableDataPath)) {
+        fs.mkdirSync(portableDataPath, { recursive: true });
+      }
+      // Do a write test
+      const testFile = path.join(portableDataPath, '.write-test');
+      fs.writeFileSync(testFile, 'test');
+      fs.unlinkSync(testFile); // Remove test file
+      
+      // If successful, use portable path
+      userDataPath = portableDataPath;
+      console.log('Using portable data path:', portableDataPath);
+    } catch (err) {
+      // Fall back to standard userData path if we can't write to portable path
+      console.log('Portable mode not available, using standard data location');
+      userDataPath = path.join(app.getPath('userData'), 'data');
+    }
+  } else {
+    // For macOS and Linux, use standard userData path
+    userDataPath = path.join(app.getPath('userData'), 'data');
+  }
+  
+  // Ensure the directory exists
   if (!fs.existsSync(userDataPath)) {
     fs.mkdirSync(userDataPath, { recursive: true });
   }
+  
   return userDataPath;
 }
 
@@ -124,6 +190,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    backgroundColor: '#1a1a1a', // Match the body background color
     icon: path.join(__dirname, process.platform === 'darwin' 
       ? 'build_resources/icons/mac/icon.icns' 
       : process.platform === 'win32'
@@ -134,8 +201,19 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
       webSecurity: true,
-      devTools: app.isPackaged ? false : true  // Only enable DevTools in development
-    }
+      devTools: app.isPackaged ? false : true,  // Only enable DevTools in development
+      backgroundThrottling: false // Prevent throttling when window is in background
+    },
+    // Ensure consistent background color during window creation and loading
+    show: false, // Don't show the window until it's ready
+    paintWhenInitiallyHidden: true, // Paint the window while it's hidden
+    // Use vibrancy effect on macOS to better integrate with the system
+    vibrancy: process.platform === 'darwin' ? 'ultra-dark' : null
+  });
+  
+  // Show the window once it's ready to avoid white flashes
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
   });
   
   // Set Content Security Policy for production
@@ -144,7 +222,7 @@ function createWindow() {
       callback({
         responseHeaders: {
           ...details.responseHeaders,
-          'Content-Security-Policy': ["default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://generativelanguage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"]
+          'Content-Security-Policy': ["default-src 'self'; script-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com; style-src 'self'; img-src 'self' data:;"]
         }
       });
     });
@@ -231,6 +309,10 @@ function createWindow() {
           });
         } else {
           // Fallback if even the error page is missing
+          // Create an encoded error message to prevent XSS
+          const safeErrorDesc = encodeURIComponent(errorDescription);
+          const safeErrorCode = encodeURIComponent(errorCode);
+          
           mainWindow.loadURL(`data:text/html;charset=utf-8,
             <html>
               <head>
@@ -239,11 +321,18 @@ function createWindow() {
                   body { font-family: sans-serif; padding: 2rem; background: #1a1a1a; color: #f0f0f0; }
                   .error { background: #ff5252; color: white; padding: 1rem; border-radius: 4px; }
                 </style>
+                <script>
+                  window.onload = function() {
+                    // Safely set error text with DOM methods
+                    const errorText = document.getElementById('errorText');
+                    errorText.textContent = decodeURIComponent("${safeErrorDesc}") + " (" + decodeURIComponent("${safeErrorCode}") + ")";
+                  };
+                </script>
               </head>
               <body>
                 <h1>Error Loading Application</h1>
                 <div class="error">
-                  <p><strong>Error:</strong> ${errorDescription} (${errorCode})</p>
+                  <p><strong>Error:</strong> <span id="errorText"></span></p>
                   <p>Please try restarting the application.</p>
                 </div>
               </body>
@@ -355,6 +444,19 @@ ipcMain.handle('get-api-key', () => {
 
 ipcMain.handle('set-api-key', (_, apiKey) => {
   try {
+    // Validate the API key first
+    if (typeof apiKey !== 'string') {
+      console.error('Invalid API key type provided');
+      return false;
+    }
+    
+    // Basic validation - API keys should be reasonable length and not contain HTML
+    if (apiKey && (apiKey.length < 10 || apiKey.includes('<') || apiKey.includes('>'))) {
+      console.error('API key failed validation checks');
+      return false;
+    }
+    
+    // Save the validated API key
     getStore().set('geminiApiKey', apiKey);
     return true;
   } catch (error) {
@@ -383,8 +485,22 @@ ipcMain.handle('save-game', async (_, gameData) => {
   });
 
   if (filePath) {
-    fs.writeFileSync(filePath, JSON.stringify(gameData, null, 2));
-    return true;
+    try {
+      // Validate the gameData before saving
+      if (!gameData || typeof gameData !== 'object') {
+        throw new Error('Invalid game data format');
+      }
+      
+      // Basic sanitization - ensure no prototype pollution
+      const sanitizedData = JSON.parse(JSON.stringify(gameData));
+      
+      fs.writeFileSync(filePath, JSON.stringify(sanitizedData, null, 2));
+      return true;
+    } catch (error) {
+      console.error('Error saving game data:', error);
+      dialog.showErrorBox('Save Error', 'Failed to save game file.');
+      return false;
+    }
   }
   return false;
 });
@@ -408,8 +524,27 @@ ipcMain.handle('load-game', async () => {
   });
 
   if (filePaths && filePaths.length > 0) {
-    const data = fs.readFileSync(filePaths[0], 'utf8');
-    return JSON.parse(data);
+    try {
+      const data = fs.readFileSync(filePaths[0], 'utf8');
+      // Validate the JSON data before parsing
+      const gameData = JSON.parse(data);
+      
+      // Add basic validation to ensure this is a valid game file
+      if (!gameData || typeof gameData !== 'object') {
+        throw new Error('Invalid game data format');
+      }
+      
+      // Check for expected game data structure
+      if (!gameData.characterState && !gameData.gameState) {
+        throw new Error('Missing required game data fields');
+      }
+      
+      return gameData;
+    } catch (error) {
+      console.error('Error loading game data:', error);
+      dialog.showErrorBox('Load Error', 'Failed to load game file. The file may be corrupted or invalid.');
+      return null;
+    }
   }
   return null;
 });
@@ -444,3 +579,5 @@ ipcMain.handle('set-debug-mode', (_, enabled) => {
     return false;
   }
 });
+
+// Remove window control handlers since we're using native controls

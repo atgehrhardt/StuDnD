@@ -6,6 +6,10 @@ import { get } from 'svelte/store';
 let genAI = null;
 let geminiModel = null;
 
+// Add simple rate limiting
+let lastRequestTime = 0;
+const MIN_REQUEST_INTERVAL = 1000; // 1 second between requests
+
 // Function to initialize Gemini
 export const initGemini = (apiKey) => {
   try {
@@ -88,6 +92,14 @@ Now, continue the game based on the player's latest input, maintaining an engagi
 // Function to generate response from Gemini
 export const generateGMResponse = async (userMessage, context) => {
   try {
+    // Implement rate limiting
+    const now = Date.now();
+    if (now - lastRequestTime < MIN_REQUEST_INTERVAL) {
+      const waitTime = MIN_REQUEST_INTERVAL - (now - lastRequestTime);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    lastRequestTime = Date.now();
+    
     ensureGeminiInitialized();
     
     // Create chat history in the format expected by the Gemini API
@@ -169,6 +181,14 @@ export const generateGMResponse = async (userMessage, context) => {
 // Function to summarize conversation
 export const summarizeConversation = async (messages) => {
   try {
+    // Apply rate limiting
+    const now = Date.now();
+    if (now - lastRequestTime < MIN_REQUEST_INTERVAL) {
+      const waitTime = MIN_REQUEST_INTERVAL - (now - lastRequestTime);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    lastRequestTime = Date.now();
+    
     ensureGeminiInitialized();
     
     // Extract message contents

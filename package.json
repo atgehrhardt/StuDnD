@@ -11,17 +11,20 @@
     "start": "npm run build && electron .",
     "start:debug": "npm run build && OPEN_DEV_TOOLS=1 electron .",
     "start:test": "npm run build:test && electron .",
-    "clean": "rimraf dist dist-electron",
+    "clean": "rimraf dist dist-electron dist-releases",
     "prebuild": "npm run clean",
     "postbuild": "echo 'Build completed successfully' && ls -la dist/ && node ./build_resources/debug-build.js",
     "check-bundles": "node ./build_resources/check-bundles.js",
     "generate-icons": "node ./build_resources/convert-svg.js && electron-icon-builder --input=./build_resources/icons/icon.png --output=./build_resources/icons",
-    "dist": "npm run clean && npm run build && npm run check-bundles && electron-builder",
-    "dist:mac": "npm run clean && npm run build && npm run check-bundles && electron-builder --mac",
-    "dist:win": "npm run clean && npm run build && npm run check-bundles && electron-builder --win",
-    "dist:linux": "npm run clean && npm run build && npm run check-bundles && electron-builder --linux",
+    "dist": "npm run clean && npm run build && npm run check-bundles && electron-builder -mwl --x64 --arm64 --ia32",
+    "dist:all": "npm run clean && npm run build && npm run check-bundles && npm run dist:mac && npm run dist:win && npm run dist:linux && npm run organize-releases",
+    "dist:mac": "npm run build && npm run check-bundles && electron-builder --mac --x64 --arm64",
+    "dist:win": "npm run build && npm run check-bundles && electron-builder --win --x64 --ia32",
+    "dist:win-portable": "npm run build && npm run check-bundles && electron-builder --win portable --x64 --ia32",
+    "dist:linux": "npm run build && npm run check-bundles && electron-builder --linux --x64 --arm64",
     "dist:test": "npm run clean && npm run build:test && electron-builder --mac",
-    "dist:minimal": "npm run clean && npm run build:test && MINIMAL_TEST=1 electron-builder --mac"
+    "dist:minimal": "npm run clean && npm run build:test && MINIMAL_TEST=1 electron-builder --mac",
+    "organize-releases": "node ./build_resources/organize-releases.js"
   },
   "build": {
     "appId": "com.studnd.app",
@@ -30,7 +33,7 @@
       "output": "dist-electron",
       "buildResources": "build_resources"
     },
-    "asar": false,
+    "asar": true,
     "files": [
       "dist/**/*",
       "main.js", 
@@ -50,18 +53,20 @@
         }
       ],
       "artifactName": "${productName}-${version}-${arch}.${ext}",
-      "icon": "build_resources/icons/mac/icon.icns"
+      "icon": "build_resources/icons/mac/icon.icns",
+      "darkModeSupport": true
     },
     "win": {
       "target": [
         {
-          "target": "nsis",
+          "target": "portable",
           "arch": [
-            "x64"
+            "x64",
+            "ia32"
           ]
         }
       ],
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "artifactName": "${productName}-${version}-${arch}-portable.${ext}",
       "icon": "build_resources/icons/win/icon.ico"
     },
     "linux": {
@@ -69,13 +74,15 @@
         {
           "target": "AppImage",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
           ]
         },
         {
           "target": "deb",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
           ]
         }
       ],

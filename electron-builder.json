@@ -5,7 +5,8 @@
     "output": "dist-electron",
     "buildResources": "build_resources"
   },
-  "asar": false,
+  "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+  "asar": true,
   "files": [
     "dist/**/*",
     "main.js",
@@ -22,27 +23,28 @@
       }
     ],
     "artifactName": "${productName}-${version}-${arch}.${ext}",
-    "icon": "build_resources/icons/mac/icon.icns"
+    "icon": "build_resources/icons/mac/icon.icns",
+    "darkModeSupport": true
   },
   "win": {
     "target": [
       {
-        "target": "nsis",
-        "arch": ["x64"]
+        "target": "portable",
+        "arch": ["x64", "ia32"]
       }
     ],
-    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "artifactName": "${productName}-${version}-${arch}-portable.${ext}",
     "icon": "build_resources/icons/win/icon.ico"
   },
   "linux": {
     "target": [
       {
         "target": "AppImage",
-        "arch": ["x64"]
+        "arch": ["x64", "arm64"]
       },
       {
         "target": "deb",
-        "arch": ["x64"]
+        "arch": ["x64", "arm64"]
       }
     ],
     "category": "Game",
