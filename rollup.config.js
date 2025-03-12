@@ -6,8 +6,8 @@ import commonjs from '@rollup/plugin-commonjs';
 import fs from 'fs';
 import path from 'path';
 
-// Enable production mode for build
-const production = true; // Always use production settings
+// Detect environment
+const production = !process.env.ROLLUP_WATCH; // Use production settings unless in watch mode
 
 // Ensure dist directory exists
 if (!fs.existsSync('dist')) {
@@ -35,7 +35,7 @@ const copyIndexHtml = () => {
       )
       .replace(
         /<script src="\.\.\/build_resources\/debug-renderer\.js"><\/script>/,
-        ''
+        '<script src="debug-renderer.js"></script>'
       );
     
     // Write the file
@@ -47,7 +47,7 @@ const copyIndexHtml = () => {
 };
 copyIndexHtml();
 
-// Basic copy function for non-bundled assets
+// Copy debug script and assets
 function copyAssets() {
   // Create assets directory if it doesn't exist
   const assetsDir = path.resolve('dist/assets');
@@ -55,10 +55,19 @@ function copyAssets() {
     fs.mkdirSync(assetsDir, { recursive: true });
   }
   
-  // Copy any additional assets if needed
   try {
+    // Copy debug-renderer.js to dist
+    const debugSrc = path.resolve('build_resources/debug-renderer.js');
+    const debugDest = path.resolve('dist/debug-renderer.js');
+    if (fs.existsSync(debugSrc)) {
+      fs.copyFileSync(debugSrc, debugDest);
+      console.log('Copied debug-renderer.js to dist folder');
+    }
+    
     // Create an empty CSS file as a fallback
-    fs.writeFileSync(path.resolve('dist/bundle.css'), '/* Bundled CSS */');
+    if (!fs.existsSync(path.resolve('dist/bundle.css'))) {
+      fs.writeFileSync(path.resolve('dist/bundle.css'), '/* Bundled CSS */');
+    }
   } catch (err) {
     console.error('Error creating/copying assets:', err);
   }
@@ -68,7 +77,7 @@ copyAssets();
 export default {
   input: 'src/main.js',
   output: {
-    sourcemap: false, // No sourcemaps in production
+    sourcemap: !production, // Only include sourcemaps in development
     format: 'iife',
     name: 'app',
     file: 'dist/bundle.js',
@@ -77,8 +86,8 @@ export default {
   plugins: [
     svelte({
       compilerOptions: {
-        // Disable dev mode
-        dev: false,
+        // Enable dev mode based on environment
+        dev: !production,
         // Make sure to use hydratable mode
         hydratable: true,
         // Generate accessors for better reactivity
@@ -104,8 +113,8 @@ export default {
       include: 'node_modules/**'
     }),
 
-    // Minify for production
-    terser({
+    // Minify for production only
+    production && terser({
       compress: {
         drop_console: false,
       }

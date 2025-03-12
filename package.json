@@ -4,8 +4,8 @@
   "description": "StuDnD - DnD 5e Learning Companion with LLM-based GM",
   "main": "main.js",
   "scripts": {
-    "dev": "npm run build && concurrently \"rollup -c -w\" \"electron .\"",
-    "dev:debug": "OPEN_DEV_TOOLS=1 npm run build && concurrently \"rollup -c -w\" \"OPEN_DEV_TOOLS=1 electron .\"",
+    "dev": "concurrently \"rollup -c -w\" \"electron .\"",
+    "dev:debug": "OPEN_DEV_TOOLS=1 concurrently \"rollup -c -w\" \"OPEN_DEV_TOOLS=1 electron .\"",
     "build": "rollup -c",
     "build:test": "rollup -c rollup.test.config.js",
     "start": "npm run build && electron .",
