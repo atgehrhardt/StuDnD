@@ -18,12 +18,18 @@ dist-electron/
 dist-releases/
 build/
 out/
+release/
 *.dmg
 *.exe
+*.msi
 *.zip
+*.tar.gz
+*.tgz
 *.AppImage
 *.deb
 *.rpm
+*.snap
+.webpack/
 
 # OS files
 .DS_Store
@@ -54,6 +60,16 @@ logs/
 *.tmp
 *.temp
 .cache/
+.temp/
 
 # Coverage directory used by tools like istanbul
 coverage/
+.nyc_output/
+
+# Generated icons
+icons/generated/
+
+# API keys and secrets
+config.json
+.env.json
+.api_keys

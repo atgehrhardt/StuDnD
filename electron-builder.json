@@ -5,7 +5,7 @@
     "output": "dist-electron",
     "buildResources": "build_resources"
   },
-  "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+  "artifactName": "${productName}-${version}-${arch}.${ext}",
   "asar": true,
   "files": [
     "dist/**/*",
@@ -19,7 +19,11 @@
     "target": [
       {
         "target": "dmg",
-        "arch": ["arm64", "x64"]
+        "arch": ["arm64"]
+      },
+      {
+        "target": "dmg",
+        "arch": ["x64"]
       }
     ],
     "artifactName": "${productName}-${version}-${arch}.${ext}",
@@ -30,24 +34,37 @@
     "target": [
       {
         "target": "portable",
-        "arch": ["x64", "ia32"]
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["ia32"]
       }
     ],
-    "artifactName": "${productName}-${version}-${arch}-portable.${ext}",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
     "icon": "build_resources/icons/win/icon.ico"
   },
   "linux": {
     "target": [
       {
         "target": "AppImage",
-        "arch": ["x64", "arm64"]
+        "arch": ["x64"]
+      },
+      {
+        "target": "AppImage",
+        "arch": ["arm64"]
       },
       {
         "target": "deb",
-        "arch": ["x64", "arm64"]
+        "arch": ["x64"]
+      },
+      {
+        "target": "deb",
+        "arch": ["arm64"]
       }
     ],
     "category": "Game",
-    "icon": "build_resources/icons/linux"
+    "icon": "build_resources/icons/linux",
+    "maintainer": "Andrew Tait Gehrhardt"
   }
 }
